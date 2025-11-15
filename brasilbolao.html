@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BrasilBolão</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin:0; background:#111; color:#fff; }
+        header {
+            background: url('https://i.imgur.com/8d0YfJZ.jpeg');
+            background-size: cover;
+            background-position: center;
+            padding: 60px 20px; text-align:center; text-shadow:2px 2px 6px #000;
+        }
+        h1 { font-size:40px; margin:0; }
+        .container { padding:20px; max-width:900px; margin:auto; }
+        .game-box, #rules, #result, #ranking, #adminPanel {
+            background:#1c1c1c; padding:20px; border-radius:10px;
+            margin-top:20px; box-shadow:0 0 10px rgba(0,0,0,0.5);
+        }
+        input { width:100%; padding:10px; border-radius:6px; border:none; margin-top:5px; }
+        button {
+            padding:12px 20px; border:none; border-radius:6px;
+            cursor:pointer; margin:10px 5px; font-size:16px; color:#fff;
+        }
+        .green { background:#28a745; }
+        .blue { background:#007bff; }
+        .red { background:#c0392b; }
+        table { width:100%; border-collapse:collapse; margin-top:10px; }
+        td, th { padding:10px; border-bottom:1px solid #444; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>BrasilBolão</h1>
+    <h3>O Bolão Mais Competitivo do Brasil</h3>
+</header>
+
+<div class="container" id="rules">
+    <h2>Regras do Bolão</h2>
+    <ul>
+        <li>✔ Acertar vitória / empate / derrota = <strong>1 ponto</strong></li>
+        <li>✔ Acertar placar exato = <strong>3 pontos</strong></li>
+        <li>✔ Valor da aposta por rodada = <strong>R$ 10,00</strong></li>
+        <li>✔ Prêmio dividido em caso de empate</li>
+        <li>✔ 15% para a banca</li>
+        <li>✔ 5% para manutenção</li>
+        <li>✔ Pagamentos via PIX</li>
+    </ul>
+</div>
+
+<div class="container">
+    <h2>Jogos da Rodada</h2>
+    <div id="games"></div>
+
+    <h2>Nome do Apostador</h2>
+    <input id="playerName" placeholder="Digite seu nome" />
+
+    <button class="green" onclick="calculateScore()">Calcular Pontos</button>
+    <button class="blue" onclick="savePlayer()">Salvar no Ranking</button>
+
+    <div id="result"></div>
+    <div id="ranking"></div>
+
+    <button class="red" onclick="showAdmin()">Área Administrativa</button>
+</div>
+
+<div class="container" id="adminPanel" style="display:none;">
+    <h2>Painel Administrativo</h2>
+    <p>Senha necessária:</p>
+    <input id="adminPass" type="password" placeholder="Digite a senha" />
+    <button class="blue" onclick="checkAdmin()">Entrar</button>
+
+    <div id="adminContent" style="display:none;">
+        <h3>Alterar Jogos</h3>
+        <textarea id="gamesEdit" style="width:100%; height:200px;"></textarea>
+        <button class="green" onclick="saveGames()">Salvar Jogos</button>
+
+        <h3>Limpar Ranking</h3>
+        <button class="red" onclick="clearRanking()">Apagar Ranking</button>
+    </div>
+</div>
+
+<script>
+let gamesList = [
+    "Time A x Time B",
+    "Time C x Time D",
+    "Time E x Time F",
+    "Time G x Time H",
+    "Time I x Time J",
+    "Time K x Time L",
+    "Time M x Time N",
+    "Time O x Time P",
+    "Time Q x Time R",
+    "Time S x Time T"
+];
+
+function renderGames() {
+    const container = document.getElementById('games');
+    container.innerHTML = "";
+
+    gamesList.forEach((g, i) => {
+        const box = document.createElement('div');
+        box.className = 'game-box';
+        box.innerHTML = `
+            <h3>${g}</h3>
+            <label>Seu Palpite (Placar):</label>
+            <input placeholder="Ex: 2-1" id="guess${i}">
+            <label>Resultado Real:</label>
+            <input placeholder="Ex: 2-1" id="real${i}">
+        `;
+        container.appendChild(box);
+    });
+}
+renderGames();
+
+let score = 0;
+
+function calculateScore() {
+    score = 0;
+    for (let i = 0; i < 10; i++) {
+        const guess = document.getElementById(`guess${i}`).value;
+        const real = document.getElementById(`real${i}`).value;
+
+        if (!guess || !real) continue;
+
+        const [g1, g2] = guess.split('-').map(Number);
+        const [r1, r2] = real.split('-').map(Number);
+
+        const guessRes = g1 === g2 ? 'E' : g1 > g2 ? 'V' : 'D';
+        const realRes = r1 === r2 ? 'E' : r1 > r2 ? 'V' : 'D';
+
+        if (guessRes === realRes) score += 1;
+        if (g1 === r1 && g2 === r2) score += 2;
+    }
+
+    document.getElementById('result').innerHTML =
+        `<h2>Pontuação: ${score} pontos</h2><p>Valor da rodada: R$ 10,00</p>`;
+}
+
+let ranking = JSON.parse(localStorage.getItem('rankingBolao') || "[]");
+
+function savePlayer() {
+    const name = document.getElementById('playerName').value;
+    if (!name) return alert("Digite o nome!");
+
+    ranking.push({ nome: name, pontos: score });
+    ranking.sort((a,b) => b.pontos - a.pontos);
+
+    localStorage.setItem('rankingBolao', JSON.stringify(ranking));
+    loadRanking();
+}
+
+function loadRanking() {
+    let html = "<h2>Ranking</h2><table><tr><th>Nome</th><th>Pontos</th></tr>";
+    ranking.forEach(r => html += `<tr><td>${r.nome}</td><td>${r.pontos}</td></tr>`);
+    html += "</table>";
+    document.getElementById('ranking').innerHTML = html;
+}
+loadRanking();
+
+function showAdmin() {
+    document.getElementById('adminPanel').style.display = "block";
+}
+
+function checkAdmin() {
+    const pass = document.getElementById('adminPass').value;
+    if (pass === "brasil10") {
+        document.getElementById('adminContent').style.display = "block";
+        document.getElementById('gamesEdit').value = gamesList.join("\n");
+    } else {
+        alert("Senha incorreta!");
+    }
+}
+
+function saveGames() {
+    const newGames = document.getElementById('gamesEdit').value.split("\n");
+    if (newGames.length === 10) {
+        gamesList = newGames;
+        renderGames();
+        alert("Jogos atualizados!");
+    } else {
+        alert("Insira exatamente 10 jogos!");
+    }
+}
+
+function clearRanking() {
+    ranking = [];
+    localStorage.setItem('rankingBolao', JSON.stringify(ranking));
+    loadRanking();
+    alert("Ranking apagado!");
+}
+</script>
+
+</body>
+</html>
